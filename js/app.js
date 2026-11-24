@@ -38,22 +38,15 @@
    * @returns {Promise<object>}
    */
   function pedirJson(url) {
-    if (cache.has(url)) {
-      return cache.get(url);
-    }
-
-    const promesa = fetch(url)
-      .then(function (respuesta) {
-        if (!respuesta.ok) {
-          throw new Error('La API respondió ' + respuesta.status);
-        }
+    if (!cache.has(url)) {
+      const promesa = fetch(url).then(function (respuesta) {
+        if (!respuesta.ok) { throw new Error('La API respondió ' + respuesta.status); }
         return respuesta.json();
       });
-
-    cache.set(url, promesa);
-    promesa.catch(function () { cache.delete(url); }); // un fallo no se cachea
-
-    return promesa;
+      cache.set(url, promesa);
+      promesa.catch(function () { cache.delete(url); }); // un fallo no se cachea
+    }
+    return cache.get(url);
   }
 
   /**
@@ -65,12 +58,11 @@
   async function buscarLibros(consulta, pagina) {
     const parametros = new URLSearchParams({
       q: consulta,
-      page: String(pagina),
-      limit: String(POR_PAGINA),
+      page: pagina,
+      limit: POR_PAGINA,
       fields: CAMPOS,
     });
-
-    const json = await pedirJson(API + '/search.json?' + parametros.toString());
+    const json = await pedirJson(API + '/search.json?' + parametros);
     return {
       total: Number(json.numFound) || 0,
       libros: Array.isArray(json.docs) ? json.docs : [],
@@ -78,7 +70,7 @@
   }
 
   /**
-   * Ficha completa de un libro.
+   * Ficha completa de una obra.
    * @param {string} clave  por ejemplo "/works/OL45804W"
    * @returns {Promise<object>}
    */
@@ -88,6 +80,19 @@
 
   /* ---------- 3. Utilidades de DOM ---------- */
 
+  const formato = new Intl.NumberFormat('es-MX');
+  const numero = formato.format.bind(formato); // 48267 → «48,267»
+
+  /* Mapa de escapes: se reutiliza en cada llamada en vez de recrearlo. */
+  const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+  /* Escapa texto de la API antes de meterlo en innerHTML: un título con
+     < o " no rompe el marcado ni permite inyectar HTML. */
+  function esc(texto) {
+    return String(texto ?? '').replace(/[&<>"']/g, (caracter) => ESCAPES[caracter]);
+  }
+
+  /** Crea un nodo con clase y texto opcionales (siempre textContent). */
   function crear(etiqueta, clase, texto) {
     const nodo = document.createElement(etiqueta);
     if (clase) { nodo.className = clase; }
@@ -95,242 +100,184 @@
     return nodo;
   }
 
-  function vaciar(nodo) {
-    while (nodo.firstChild) { nodo.removeChild(nodo.firstChild); }
-  }
-
-  function numero(valor) {
-    return new Intl.NumberFormat('es-MX').format(valor);
-  }
-
-  /* La descripción del detalle puede ser texto o { value: texto } */
+  /** La descripción del detalle puede ser texto o { value: texto }. */
   function descripcionDe(libro) {
-    if (!libro.description) { return ''; }
-    return typeof libro.description === 'string'
-      ? libro.description
-      : libro.description.value || '';
+    const descripcion = libro.description;
+    return typeof descripcion === 'string' ? descripcion : (descripcion && descripcion.value) || '';
   }
 
-  /* ---------- 4. Render ---------- */
+  /** HTML de la portada del CDN, o el aviso si el libro no tiene cover_i. */
+  function portadaHTML(id, tamano, titulo) {
+    if (!id) { return '<span class="sin-portada">Sin portada</span>'; }
+    return '<img src="' + PORTADAS + '/' + encodeURIComponent(id) + '-' + tamano + '.jpg"' +
+      ' alt="Portada de ' + esc(titulo || 'libro') + '" loading="lazy" decoding="async">';
+  }
 
+  /* ---------- 4. Nodos fijos ---------- */
+
+  const $ = (id) => document.getElementById(id);
   const el = {
-    buscador: document.getElementById('buscador'),
-    sugerencias: document.getElementById('sugerencias'),
-    resumen: document.getElementById('resumen'),
-    cache: document.getElementById('cache-info'),
-    avisos: document.getElementById('estado'),
-    celdas: document.getElementById('celdas'),
-    paginacion: document.getElementById('paginacion'),
-    modal: document.getElementById('modal'),
-    modalTitulo: document.getElementById('modal-titulo'),
-    modalCuerpo: document.getElementById('modal-cuerpo'),
+    buscador: $('buscador'),
+    sugerencias: $('sugerencias'),
+    resumen: $('resumen'),
+    cache: $('cache-info'),
+    avisos: $('estado'),
+    celdas: $('celdas'),
+    paginacion: $('paginacion'),
+    modal: $('modal'),
+    modalTitulo: $('modal-titulo'),
+    modalCuerpo: $('modal-cuerpo'),
   };
 
   function pintarCache() {
-    const total = cache.size;
-    el.cache.textContent = 'caché: ' + numero(total) + (total === 1 ? ' respuesta' : ' respuestas');
+    el.cache.textContent = 'caché: ' + numero(cache.size) + (cache.size === 1 ? ' respuesta' : ' respuestas');
   }
 
-  /** Esqueletos mientras llega la respuesta. */
+  /* ---------- 5. Render ---------- */
+
+  /** Esqueletos de carga: HTML fijo, repetido una vez por tarjeta. */
+  const ESQUELETO = '<div class="cell"><div class="esqueleto">' +
+    '<div class="bloque bloque-portada"></div><div class="bloque bloque-linea"></div>' +
+    '<div class="bloque bloque-linea corta"></div></div></div>';
+
   function pintarCarga() {
-    vaciar(el.celdas);
-    for (let i = 0; i < POR_PAGINA; i += 1) {
-      const celda = crear('div', 'cell');
-      const caja = crear('div', 'esqueleto');
-      caja.appendChild(crear('div', 'bloque bloque-portada'));
-      caja.appendChild(crear('div', 'bloque bloque-linea'));
-      caja.appendChild(crear('div', 'bloque bloque-linea corta'));
-      celda.appendChild(caja);
-      el.celdas.appendChild(celda);
-    }
+    el.celdas.innerHTML = ESQUELETO.repeat(POR_PAGINA);
   }
 
   /** Tarjeta de un libro: portada, título, autor, año y ediciones. */
   function pintarTarjeta(libro) {
+    const titulo = libro.title || 'Sin título';
+    const autor = libro.author_name ? libro.author_name[0] : 'Autor desconocido';
+    const etiquetas =
+      (libro.first_publish_year ? '<span class="etiqueta etiqueta-anio">' + esc(libro.first_publish_year) + '</span>' : '') +
+      (libro.edition_count ? '<span class="etiqueta">' + numero(libro.edition_count) + ' ediciones</span>' : '');
+
     const celda = crear('div', 'cell');
-    const tarjeta = crear('article', 'tarjeta');
+    celda.innerHTML =
+      '<article class="tarjeta">' +
+        '<figure class="portada">' + portadaHTML(libro.cover_i, 'M', titulo) + '</figure>' +
+        '<div class="cuerpo">' +
+          '<h3 class="titulo">' + esc(titulo) + '</h3>' +
+          '<p class="autor">' + esc(autor) + '</p>' +
+          '<div class="etiquetas">' + etiquetas + '</div>' +
+          '<button type="button" class="button ver">Ver ficha <span>→</span></button>' +
+        '</div>' +
+      '</article>';
 
-    /* Portada */
-    const portada = crear('figure', 'portada');
-    if (libro.cover_i) {
-      const img = crear('img');
-      img.src = PORTADAS + '/' + libro.cover_i + '-M.jpg';
-      img.alt = 'Portada de ' + (libro.title || 'libro');
-      img.loading = 'lazy';
-      img.addEventListener('error', function () {
-        vaciar(portada);
-        portada.appendChild(crear('span', 'sin-portada', 'Sin portada'));
-      });
-      portada.appendChild(img);
-    } else {
-      portada.appendChild(crear('span', 'sin-portada', 'Sin portada'));
-    }
-    tarjeta.appendChild(portada);
-
-    /* Datos */
-    const cuerpo = crear('div', 'cuerpo');
-    cuerpo.appendChild(crear('h3', 'titulo', libro.title || 'Sin título'));
-    cuerpo.appendChild(
-      crear('p', 'autor', libro.author_name ? libro.author_name[0] : 'Autor desconocido')
-    );
-
-    const etiquetas = crear('div', 'etiquetas');
-    if (libro.first_publish_year) {
-      etiquetas.appendChild(crear('span', 'etiqueta etiqueta-anio', String(libro.first_publish_year)));
-    }
-    if (libro.edition_count) {
-      etiquetas.appendChild(crear('span', 'etiqueta', numero(libro.edition_count) + ' ediciones'));
-    }
-    cuerpo.appendChild(etiquetas);
-
-    const boton = crear('button', 'button ver', 'Ver ficha');
-    boton.type = 'button';
-    boton.appendChild(crear('span', '', '→'));
     /* Se pasa el libro de la lista para tener autor y año a mano:
        la ficha de detalle no repite esos datos. */
-    boton.addEventListener('click', function () { abrirFicha(libro); });
-    cuerpo.appendChild(boton);
-
-    tarjeta.appendChild(cuerpo);
-    celda.appendChild(tarjeta);
+    celda.querySelector('.ver').addEventListener('click', function () { abrirFicha(libro); });
     return celda;
   }
 
-  /** Paginación de Bulma con ventana de 5 páginas. */
+  /** Paginación de Bulma con ventana de 5 páginas; los saltos van en `data-ir`. */
   function pintarPaginacion(pagina, paginas) {
-    vaciar(el.paginacion);
     el.paginacion.hidden = paginas <= 1;
-    if (paginas <= 1) { return; }
+    if (paginas <= 1) { el.paginacion.replaceChildren(); return; }
 
-    const anterior = crear('a', 'pagination-previous', 'Anterior');
-    const siguiente = crear('a', 'pagination-next', 'Siguiente');
-
-    if (pagina > 1) {
-      anterior.addEventListener('click', function () { irA(pagina - 1); });
-    } else {
-      anterior.classList.add('is-disabled');
-    }
-    if (pagina < paginas) {
-      siguiente.addEventListener('click', function () { irA(pagina + 1); });
-    } else {
-      siguiente.classList.add('is-disabled');
-    }
-
-    el.paginacion.appendChild(anterior);
-    el.paginacion.appendChild(siguiente);
-
-    const lista = crear('ul', 'pagination-list');
     const desde = Math.max(1, pagina - 2);
     const hasta = Math.min(paginas, pagina + 2);
-
+    const numeros = [];
     for (let n = desde; n <= hasta; n += 1) {
-      const li = crear('li');
-      const enlace = crear('a', 'pagination-link', String(n));
-      if (n === pagina) {
-        enlace.classList.add('is-current');
-        enlace.setAttribute('aria-current', 'page');
-      } else {
-        enlace.addEventListener('click', function () { irA(n); });
-      }
-      li.appendChild(enlace);
-      lista.appendChild(li);
+      numeros.push(n === pagina
+        ? '<li><a class="pagination-link is-current" aria-current="page">' + n + '</a></li>'
+        : '<li><a class="pagination-link" data-ir="' + n + '">' + n + '</a></li>');
     }
 
-    el.paginacion.appendChild(lista);
+    el.paginacion.innerHTML =
+      '<a class="pagination-previous' + (pagina === 1 ? ' is-disabled' : '') + '"' +
+        (pagina > 1 ? ' data-ir="' + (pagina - 1) + '"' : '') + '>Anterior</a>' +
+      '<a class="pagination-next' + (pagina === paginas ? ' is-disabled' : '') + '"' +
+        (pagina < paginas ? ' data-ir="' + (pagina + 1) + '"' : '') + '>Siguiente</a>' +
+      '<ul class="pagination-list">' + numeros.join('') + '</ul>';
   }
 
-  /** Mensaje de error con `notification` de Bulma y botón de reintento. */
+  /** Aviso tipo `notification` de Bulma, con acción opcional. */
+  function aviso(clases, titulo, detalle, accion) {
+    const caja = crear('div', 'notification ' + clases);
+    caja.append(
+      crear('p', 'has-text-weight-semibold', titulo),
+      crear('p', 'is-size-7 mt-1', detalle)
+    );
+    if (accion) {
+      const boton = crear('button', 'button is-danger is-light is-small mt-4', accion.texto);
+      boton.type = 'button';
+      boton.addEventListener('click', accion.alHacer);
+      caja.append(boton);
+    }
+    el.avisos.replaceChildren(caja);
+  }
+
+  /** Error de red, con botón de reintento. */
   function pintarError(error) {
-    vaciar(el.avisos);
-    const caja = crear('div', 'notification is-danger');
-    caja.appendChild(crear('p', 'has-text-weight-semibold', 'No se pudo cargar la lista'));
-    caja.appendChild(
-      crear('p', 'is-size-7 mt-1', 'Revisa tu conexión e inténtalo de nuevo.' +
-        (error && error.message ? ' (' + error.message + ')' : ''))
-    );
-
-    const boton = crear('button', 'button is-danger is-light is-small mt-4', 'Reintentar');
-    boton.type = 'button';
-    boton.addEventListener('click', function () { cargar(); });
-    caja.appendChild(boton);
-
-    el.avisos.appendChild(caja);
+    aviso('is-danger', 'No se pudo cargar la lista',
+      'Revisa tu conexión e inténtalo de nuevo.' +
+        (error && error.message ? ' (' + error.message + ')' : ''),
+      { texto: 'Reintentar', alHacer: cargar });
   }
 
-  /** Sin resultados. */
+  /** Búsqueda sin coincidencias. */
   function pintarVacio(consulta) {
-    vaciar(el.avisos);
-    const caja = crear('div', 'notification is-warning is-light');
-    caja.appendChild(crear('p', 'has-text-weight-semibold', 'Sin resultados'));
-    caja.appendChild(
-      crear('p', 'is-size-7 mt-1', 'No hay libros para «' + consulta + '». Prueba con otra palabra.')
-    );
-    el.avisos.appendChild(caja);
+    aviso('is-warning is-light', 'Sin resultados',
+      'No hay libros para «' + consulta + '». Prueba con otra palabra.');
   }
 
-  /* ---------- 5. Estado y flujo ---------- */
+  /* ---------- 6. Estado y flujo ---------- */
 
-  const estado = { pagina: 1, consulta: 'dune', total: 0, paginas: 1, cargando: false, error: false };
+  const estado = { consulta: 'dune', pagina: 1, total: 0, paginas: 1, turno: 0, cargando: false, error: false };
 
+  /** Barra de estado: carga, error, sin resultados o rango de la página. */
   function pintarResumen() {
-    if (estado.cargando) {
-      el.resumen.textContent = 'Consultando Open Library…';
-      return;
-    }
-    if (estado.error) {
-      el.resumen.textContent = 'No se pudo cargar la lista · «' + estado.consulta + '»';
-      return;
-    }
-    if (estado.total === 0) {
-      el.resumen.textContent = 'Sin resultados · «' + estado.consulta + '»';
-      return;
-    }
+    if (estado.cargando) { el.resumen.textContent = 'Consultando Open Library…'; return; }
+    if (estado.error) { el.resumen.textContent = 'No se pudo cargar la lista · «' + estado.consulta + '»'; return; }
+    if (estado.total === 0) { el.resumen.textContent = 'Sin resultados · «' + estado.consulta + '»'; return; }
+
     const desde = (estado.pagina - 1) * POR_PAGINA + 1;
     const hasta = Math.min(estado.pagina * POR_PAGINA, estado.total);
-    el.resumen.innerHTML =
-      '<strong>' + numero(desde) + '–' + numero(hasta) + '</strong> de ' +
-      numero(estado.total) + ' libros · página ' + estado.pagina + ' de ' + numero(estado.paginas) +
-      (estado.consulta ? ' · «' + estado.consulta + '»' : '');
+    el.resumen.replaceChildren(
+      crear('strong', '', numero(desde) + '–' + numero(hasta)),
+      ' de ' + numero(estado.total) + ' libros · página ' + estado.pagina +
+        ' de ' + numero(estado.paginas) + ' · «' + estado.consulta + '»'
+    );
   }
 
+  /* Pide la página actual y la pinta. Cada llamada incrementa `turno`:
+     si una respuesta vieja llega tarde, se descarta y no pisa la nueva. */
   async function cargar() {
-    if (estado.cargando) { return; }
+    const turno = ++estado.turno;
     estado.cargando = true;
     estado.error = false;
-    UI_limpiarAvisos();
-    vaciar(el.paginacion);
+    el.avisos.replaceChildren();
     el.paginacion.hidden = true;
+    el.paginacion.replaceChildren();
     pintarCarga();
     pintarResumen();
 
     try {
       const resultado = await buscarLibros(estado.consulta, estado.pagina);
+      if (turno !== estado.turno) { return; }
       estado.total = resultado.total;
       estado.paginas = Math.max(1, Math.ceil(resultado.total / POR_PAGINA));
+      el.celdas.replaceChildren();
 
       if (resultado.libros.length === 0) {
-        vaciar(el.celdas);
         pintarVacio(estado.consulta);
       } else {
-        vaciar(el.celdas);
-        resultado.libros.forEach(function (libro) {
-          el.celdas.appendChild(pintarTarjeta(libro));
-        });
+        el.celdas.append(...resultado.libros.map(pintarTarjeta));
         pintarPaginacion(estado.pagina, estado.paginas);
       }
     } catch (error) {
+      if (turno !== estado.turno) { return; }
       estado.error = true;
-      vaciar(el.celdas);
+      el.celdas.replaceChildren();
       pintarError(error);
     } finally {
-      estado.cargando = false;
-      pintarResumen();
-      pintarCache();
+      if (turno === estado.turno) {
+        estado.cargando = false;
+        pintarResumen();
+        pintarCache();
+      }
     }
-  }
-
-  function UI_limpiarAvisos() {
-    vaciar(el.avisos);
   }
 
   function irA(pagina) {
@@ -339,127 +286,115 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  /* ---------- 6. Ficha ---------- */
+  /* ---------- 7. Ficha ---------- */
 
-  function abrirModal() {
-    el.modal.classList.add('is-active');
-  }
-
-  function cerrarModal() {
-    el.modal.classList.remove('is-active');
-  }
+  function abrirModal() { el.modal.classList.add('is-active'); }
+  function cerrarModal() { el.modal.classList.remove('is-active'); }
 
   /**
    * Pinta la ficha completa.
-   * @param {object} libro     respuesta de /works/{id}.json
-   * @param {object} resumen   datos que ya tenía la tarjeta (autor, año, ediciones)
+   * @param {object} libro    respuesta de /works/{id}.json
+   * @param {object} resumen  datos que ya tenía la tarjeta (autor, año, ediciones)
    */
   function pintarFicha(libro, resumen) {
-    vaciar(el.modalCuerpo);
     el.modalTitulo.textContent = 'Ficha del libro';
-
-    const ficha = crear('div', 'ficha');
-
-    /* Portada grande */
-    const columna = crear('div', 'ficha-portada');
-    if (libro.covers && libro.covers.length > 0) {
-      const img = crear('img');
-      img.src = PORTADAS + '/' + libro.covers[0] + '-L.jpg';
-      img.alt = 'Portada de ' + (libro.title || 'libro');
-      columna.appendChild(img);
-    } else {
-      columna.appendChild(crear('span', 'sin-portada', 'Sin portada'));
-    }
-    ficha.appendChild(columna);
-
-    /* Datos */
-    const texto = crear('div', 'ficha-texto');
-    texto.appendChild(crear('h2', '', libro.title || 'Sin título'));
-    texto.appendChild(
-      crear('p', 'ficha-autor', resumen.author_name ? resumen.author_name[0] : 'Autor desconocido')
-    );
-
-    const datos = crear('dl', 'ficha-datos');
+    const titulo = libro.title || 'Sin título';
+    const autor = resumen.author_name ? resumen.author_name[0] : 'Autor desconocido';
     const anio = libro.first_publish_date || resumen.first_publish_year;
-    if (anio) {
-      datos.appendChild(crear('dt', '', 'Primera publicación'));
-      datos.appendChild(crear('dd', '', String(anio)));
-    }
-    if (resumen.edition_count) {
-      datos.appendChild(crear('dt', '', 'Ediciones'));
-      datos.appendChild(crear('dd', '', numero(resumen.edition_count)));
-    }
-    datos.appendChild(crear('dt', '', 'Identificador'));
-    datos.appendChild(crear('dd', '', libro.key || '—'));
-    texto.appendChild(datos);
 
+    const datos =
+      (anio ? '<dt>Primera publicación</dt><dd>' + esc(anio) + '</dd>' : '') +
+      (resumen.edition_count ? '<dt>Ediciones</dt><dd>' + numero(resumen.edition_count) + '</dd>' : '') +
+      '<dt>Identificador</dt><dd>' + esc(libro.key || '—') + '</dd>';
+
+    let temas = '';
     if (libro.subjects && libro.subjects.length > 0) {
-      const temas = crear('div', 'ficha-temas');
       /* La API repite algunos temas: se quitan los duplicados. */
-      Array.from(new Set(libro.subjects)).slice(0, 8).forEach(function (tema) {
-        temas.appendChild(crear('span', 'etiqueta', tema));
-      });
-      texto.appendChild(temas);
+      temas = '<div class="ficha-temas">' +
+        Array.from(new Set(libro.subjects)).slice(0, 8).map(function (tema) {
+          return '<span class="etiqueta">' + esc(tema) + '</span>';
+        }).join('') +
+      '</div>';
     }
 
     const descripcion = descripcionDe(libro);
-    if (descripcion) {
-      const bloque = crear('div', 'ficha-descripcion');
-      bloque.appendChild(crear('p', '', descripcion));
-      texto.appendChild(bloque);
-    }
+    const bloque = descripcion
+      ? '<div class="ficha-descripcion"><p>' + esc(descripcion) + '</p></div>'
+      : '';
 
-    ficha.appendChild(texto);
-    el.modalCuerpo.appendChild(ficha);
+    el.modalCuerpo.innerHTML =
+      '<div class="ficha">' +
+        '<div class="ficha-portada">' + portadaHTML(libro.covers && libro.covers[0], 'L', titulo) + '</div>' +
+        '<div class="ficha-texto">' +
+          '<h2>' + esc(titulo) + '</h2>' +
+          '<p class="ficha-autor">' + esc(autor) + '</p>' +
+          '<dl class="ficha-datos">' + datos + '</dl>' + temas + bloque +
+        '</div>' +
+      '</div>';
   }
 
   async function abrirFicha(resumen) {
     abrirModal();
-    vaciar(el.modalCuerpo);
     el.modalTitulo.textContent = 'Cargando ficha…';
-    el.modalCuerpo.appendChild(crear('p', 'p-6 is-size-7', 'Pidiendo la ficha a Open Library…'));
+    el.modalCuerpo.innerHTML = '<p class="p-6 is-size-7">Pidiendo la ficha a Open Library…</p>';
 
     try {
-      const libro = await obtenerLibro(resumen.key);
-      pintarFicha(libro, resumen);
+      pintarFicha(await obtenerLibro(resumen.key), resumen);
     } catch (error) {
-      vaciar(el.modalCuerpo);
-      const caja = crear('div', 'notification is-danger m-5');
-      caja.appendChild(crear('p', 'has-text-weight-semibold', 'No se pudo cargar la ficha'));
-      caja.appendChild(crear('p', 'is-size-7 mt-1', 'Inténtalo de nuevo en unos segundos.'));
-      el.modalCuerpo.appendChild(caja);
+      el.modalCuerpo.innerHTML =
+        '<div class="notification is-danger m-5">' +
+          '<p class="has-text-weight-semibold">No se pudo cargar la ficha</p>' +
+          '<p class="is-size-7 mt-1">Inténtalo de nuevo en unos segundos.</p>' +
+        '</div>';
     } finally {
       pintarCache();
     }
   }
 
-  /* ---------- 7. Eventos ---------- */
+  /* ---------- 8. Eventos ---------- */
+
+  /* Una imagen rota se cambia por «Sin portada» en tarjetas y ficha.
+     `error` no burbujea, por eso se escucha en fase de captura. */
+  document.addEventListener('error', function (evento) {
+    const img = evento.target;
+    if (img instanceof HTMLImageElement && img.parentElement.matches('.portada, .ficha-portada')) {
+      img.parentElement.replaceChildren(crear('span', 'sin-portada', 'Sin portada'));
+    }
+  }, true);
 
   let temporizador;
 
-  /* Búsqueda con retardo (400 ms) para no pedir en cada tecla. */
+  /** Lanza una búsqueda nueva desde la página 1. */
+  function buscar(consulta) {
+    estado.consulta = consulta.trim() || 'dune';
+    estado.pagina = 1;
+    cargar();
+  }
+
+  /* Retardo de 400 ms para no pedir a la API en cada tecla. */
   el.buscador.addEventListener('input', function (evento) {
-    const consulta = evento.target.value.trim() || 'dune';
     window.clearTimeout(temporizador);
     temporizador = window.setTimeout(function () {
-      if (consulta === estado.consulta) { return; }
-      estado.consulta = consulta;
-      estado.pagina = 1;
-      cargar();
+      const consulta = evento.target.value.trim() || 'dune';
+      if (consulta !== estado.consulta) { buscar(consulta); }
     }, 400);
   });
 
-  /* Sugerencias rápidas */
+  /* Sugerencias rápidas. */
   el.sugerencias.addEventListener('click', function (evento) {
     const boton = evento.target.closest('button[data-q]');
     if (!boton) { return; }
     el.buscador.value = boton.dataset.q;
-    estado.consulta = boton.dataset.q;
-    estado.pagina = 1;
-    cargar();
+    buscar(boton.dataset.q);
   });
 
-  /* Cerrar la ficha */
+  /* Un solo listener resuelve Anterior, Siguiente y los números. */
+  el.paginacion.addEventListener('click', function (evento) {
+    const enlace = evento.target.closest('[data-ir]');
+    if (enlace) { irA(Number(enlace.dataset.ir)); }
+  });
+
+  /* Cerrar la ficha con la X o con el fondo oscuro. */
   el.modal.addEventListener('click', function (evento) {
     if (evento.target.closest('[data-cerrar]')) { cerrarModal(); }
   });
@@ -468,7 +403,6 @@
     if (evento.key === 'Escape') { cerrarModal(); }
   });
 
-  /* ---------- 8. Arranque ---------- */
+  /* ---------- 9. Arranque ---------- */
   cargar();
 })();
-

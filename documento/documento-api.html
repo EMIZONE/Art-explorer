@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <title>Documento de la API — Open Library</title>
 <style>
+  /* Página A4 y tipografía base del documento. */
   @page { size: A4; margin: 13mm 15mm 12mm; }
   * { box-sizing: border-box; }
   body {
@@ -23,11 +24,13 @@
     color: #14332d;
     page-break-after: avoid;
   }
+  /* Tablas de datos generales, endpoints y rutas. */
   table { width: 100%; border-collapse: collapse; margin: 0 0 1mm; }
   th, td { text-align: left; vertical-align: top; padding: 1.1mm 1.8mm; border: .5pt solid #d8d2c7; }
   th { background: #eef3f0; font-size: 8pt; }
   td.k { width: 27%; font-weight: 600; background: #faf8f4; }
   code, .mono { font-family: Consolas, "Courier New", monospace; font-size: 7.7pt; }
+  /* Bloques de código con barra de acento a la izquierda. */
   .code {
     font-family: Consolas, "Courier New", monospace;
     font-size: 7.3pt;
@@ -43,6 +46,7 @@
   ul { margin: 0 0 2mm; padding-left: 4.2mm; }
   li { margin-bottom: .9mm; }
   .chiquita { font-size: 7.6pt; color: #555; }
+  /* Dos columnas para comparar los JSON de lista y detalle. */
   .dos { display: flex; gap: 4mm; }
   .dos > div { flex: 1; }
   b.t { color: #14332d; }

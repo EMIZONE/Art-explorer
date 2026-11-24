@@ -4,6 +4,7 @@
    siguen usando clases de Bulma.
    ============================================================ */
 
+/* ---------- 1. Variables y base ---------- */
 :root {
   --tinta: #1c1917;
   --tinta-suave: #57534e;
@@ -13,10 +14,7 @@
   --acento-suave: #e3eeea;
 }
 
-html {
-  background: var(--papel);
-}
-
+/* Columna flexible: el pie queda abajo aunque haya pocas tarjetas. */
 body {
   min-height: 100vh;
   display: flex;
@@ -28,7 +26,7 @@ body {
 
 main.section { flex: 1; }
 
-/* ---------- Cabecera ---------- */
+/* ---------- 2. Cabecera ---------- */
 .cabecera {
   padding: 1.5rem 1.5rem 1.25rem;
   border-bottom: 1px solid var(--linea);
@@ -44,17 +42,9 @@ main.section { flex: 1; }
   margin-bottom: 1.1rem;
 }
 
-.marca {
-  font-size: .74rem;
-  font-weight: 700;
-  letter-spacing: .22em;
-}
+.marca { font-size: .74rem; font-weight: 700; letter-spacing: .22em; }
 
-.enlace-fuente {
-  font-size: .74rem;
-  color: var(--tinta-suave);
-}
-
+.enlace-fuente { font-size: .74rem; color: var(--tinta-suave); }
 .enlace-fuente:hover { color: var(--acento); }
 
 .titulo-principal {
@@ -67,27 +57,23 @@ main.section { flex: 1; }
 
 .subtitulo-principal {
   max-width: 52ch;
+  margin-bottom: 1.1rem;
   font-size: .92rem;
   color: var(--tinta-suave);
-  margin-bottom: 1.1rem;
 }
 
-/* ---------- Buscador ---------- */
+/* ---------- 3. Buscador ---------- */
 .buscador { max-width: 620px; }
 
 .buscador .input {
   border-color: var(--linea);
   box-shadow: none;
-  background: #fff;
 }
 
-/* Lupa dibujada como fondo: no necesita marcado extra */
+/* La lupa va como fondo: no hace falta un icono en el marcado. */
 .buscador .input-buscar {
   padding-left: 2.75rem;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2357534e' stroke-width='2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><line x1='16.5' y1='16.5' x2='21' y2='21'/></svg>");
-  background-repeat: no-repeat;
-  background-position: .95rem center;
-  background-size: 1.05rem;
+  background: #fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2357534e' stroke-width='2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><line x1='16.5' y1='16.5' x2='21' y2='21'/></svg>") no-repeat .95rem center / 1.05rem;
 }
 
 .buscador .input::placeholder { color: #8f867b; opacity: 1; }
@@ -117,7 +103,7 @@ main.section { flex: 1; }
   background: var(--acento-suave);
 }
 
-/* ---------- Barra de estado ---------- */
+/* ---------- 4. Barra de estado ---------- */
 .barra-estado {
   display: flex;
   flex-wrap: wrap;
@@ -131,28 +117,28 @@ main.section { flex: 1; }
 .resumen strong { color: var(--tinta); }
 
 .cache-info {
+  padding: .15rem .6rem;
+  border-radius: 999px;
+  background: var(--acento-suave);
+  color: var(--acento);
   font-size: .7rem;
   letter-spacing: .04em;
-  color: var(--acento);
-  background: var(--acento-suave);
-  border-radius: 999px;
-  padding: .15rem .6rem;
 }
 
-/* Sin datos todavía: mejor no mostrar la píldora vacía */
+/* Sin datos todavía: mejor no mostrar la píldora vacía. */
 .cache-info:empty { display: none; }
 
-/* ---------- Tarjetas ---------- */
+/* ---------- 5. Tarjetas ---------- */
 #celdas { gap: 1.25rem; }
 
 .tarjeta {
   height: 100%;
+  display: flex;
+  flex-direction: column;
   background: #fff;
   border: 1px solid var(--linea);
   border-radius: 5px;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
   transition: transform .18s ease, box-shadow .18s ease;
 }
 
@@ -165,23 +151,20 @@ main.section { flex: 1; }
 .portada {
   aspect-ratio: 4 / 5;
   max-height: 320px;
-  background: #f2ede5;
   display: grid;
   place-items: center;
   overflow: hidden;
+  background: #f2ede5;
 }
 
-.portada img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+.portada img { width: 100%; height: 100%; object-fit: cover; }
 
-.portada .sin-portada {
-  font-size: .7rem;
-  color: var(--tinta-suave);
-  text-align: center;
+/* Sirve para la tarjeta y para la ficha cuando no hay portada. */
+.sin-portada {
   padding: .5rem;
+  color: var(--tinta-suave);
+  font-size: .7rem;
+  text-align: center;
 }
 
 .tarjeta .cuerpo {
@@ -210,40 +193,37 @@ main.section { flex: 1; }
   text-overflow: ellipsis;
 }
 
-.tarjeta .etiquetas {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .3rem;
-  margin: .2rem 0 .5rem;
-}
+.tarjeta .etiquetas { display: flex; flex-wrap: wrap; gap: .3rem; margin: .2rem 0 .5rem; }
 
-.tarjeta .etiqueta {
-  font-size: .68rem;
+.etiqueta {
   padding: .15rem .45rem;
   border-radius: 3px;
   background: #f4f0ea;
   color: var(--tinta-suave);
+  font-size: .68rem;
 }
 
-.tarjeta .etiqueta-anio { background: var(--acento-suave); color: var(--acento); }
+/* El año y los temas comparten el color de acento. */
+.etiqueta-anio,
+.ficha-temas .etiqueta { background: var(--acento-suave); color: var(--acento); }
 
 .tarjeta .ver {
   margin-top: auto;
   width: 100%;
   justify-content: space-between;
-  font-size: .76rem;
   border-color: var(--linea);
   color: var(--tinta);
+  font-size: .76rem;
 }
 
 .tarjeta .ver:hover { border-color: var(--acento); color: var(--acento); }
 
-/* ---------- Esqueletos de carga ---------- */
+/* ---------- 6. Esqueletos de carga ---------- */
 .esqueleto {
+  background: #fff;
   border: 1px solid var(--linea);
   border-radius: 5px;
   overflow: hidden;
-  background: #fff;
 }
 
 .esqueleto .bloque {
@@ -256,11 +236,11 @@ main.section { flex: 1; }
 
 .esqueleto .bloque-linea {
   height: .65rem;
-  border-radius: 3px;
   margin: .8rem;
+  border-radius: 3px;
 }
 
-.esqueleto .bloque-linea.corta { width: 55%; }
+.esqueleto .corta { width: 55%; }
 
 @keyframes brillo {
   0% { background-position: 100% 50%; }
@@ -272,36 +252,33 @@ main.section { flex: 1; }
   .tarjeta { transition: none; }
 }
 
-/* ---------- Paginación ---------- */
+/* ---------- 7. Paginación ---------- */
 .pagination-link.is-current {
   background: var(--acento);
   border-color: var(--acento);
 }
 
-/* ---------- Ficha ---------- */
+/* ---------- 8. Ficha ---------- */
 .modal-ancho { width: min(880px, calc(100vw - 2rem)); }
 .modal-card-body { padding: 0; max-height: 78vh; overflow-y: auto; }
 
-.ficha {
-  display: grid;
-  grid-template-columns: 1fr;
-}
+.ficha { display: grid; grid-template-columns: 1fr; }
 
 @media (min-width: 769px) {
   .ficha { grid-template-columns: 34% 1fr; }
 }
 
 .ficha-portada {
-  background: #f2ede5;
   padding: 1.25rem;
+  background: #f2ede5;
   display: grid;
   place-items: center;
 }
 
 .ficha-portada img {
+  max-width: 100%;
   max-height: 60vh;
   width: auto;
-  max-width: 100%;
   box-shadow: 0 8px 24px rgba(28, 25, 23, .14);
 }
 
@@ -320,8 +297,8 @@ main.section { flex: 1; }
   display: grid;
   grid-template-columns: auto 1fr;
   gap: .3rem .9rem;
-  font-size: .8rem;
   margin-bottom: 1rem;
+  font-size: .8rem;
 }
 
 .ficha-datos dt { color: var(--tinta-suave); }
@@ -333,28 +310,20 @@ main.section { flex: 1; }
   margin-bottom: 1rem;
 }
 
-.ficha-temas .etiqueta {
-  font-size: .68rem;
-  padding: .15rem .45rem;
-  border-radius: 3px;
-  background: var(--acento-suave);
-  color: var(--acento);
-}
-
 .ficha-descripcion {
+  padding-top: 1rem;
+  border-top: 1px solid var(--linea);
   font-size: .88rem;
   line-height: 1.6;
-  border-top: 1px solid var(--linea);
-  padding-top: 1rem;
 }
 
-/* ---------- Pie ---------- */
+/* ---------- 9. Pie ---------- */
 .footer {
-  background: var(--papel);
-  border-top: 1px solid var(--linea);
   padding: 1.75rem 1.5rem;
-  font-size: .8rem;
+  border-top: 1px solid var(--linea);
+  background: var(--papel);
   color: var(--tinta-suave);
+  font-size: .8rem;
 }
 
 .nivel-pie {
