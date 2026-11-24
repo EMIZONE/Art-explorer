@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Documento de la API — Open Library</title>
+<style>
+  @page { size: A4; margin: 13mm 15mm 12mm; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 8.6pt;
+    line-height: 1.32;
+    color: #1b1b1b;
+  }
+  h1 { font-size: 15pt; margin: 0 0 2mm; letter-spacing: -.2pt; }
+  .sub { color: #555; font-size: 8.2pt; margin: 0 0 4mm; }
+  h2 {
+    font-size: 9.6pt;
+    margin: 4.5mm 0 1.8mm;
+    padding-bottom: 1mm;
+    border-bottom: .6pt solid #c9c3b8;
+    color: #14332d;
+    page-break-after: avoid;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 0 0 1mm; }
+  th, td { text-align: left; vertical-align: top; padding: 1.1mm 1.8mm; border: .5pt solid #d8d2c7; }
+  th { background: #eef3f0; font-size: 8pt; }
+  td.k { width: 27%; font-weight: 600; background: #faf8f4; }
+  code, .mono { font-family: Consolas, "Courier New", monospace; font-size: 7.7pt; }
+  .code {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 7.3pt;
+    line-height: 1.35;
+    background: #f7f5f0;
+    border: .5pt solid #ded8cd;
+    border-left: 2.2pt solid #1f4e46;
+    padding: 2mm 2.5mm;
+    white-space: pre-wrap;
+    margin: 0 0 2mm;
+  }
+  .nota { font-size: 7.8pt; color: #4a4a4a; margin: 1mm 0 2mm; }
+  ul { margin: 0 0 2mm; padding-left: 4.2mm; }
+  li { margin-bottom: .9mm; }
+  .chiquita { font-size: 7.6pt; color: #555; }
+  .dos { display: flex; gap: 4mm; }
+  .dos > div { flex: 1; }
+  b.t { color: #14332d; }
+</style>
+</head>
+<body>
+
+<h1>Documento de la API: Open Library</h1>
+<p class="sub">LAD319 · Desarrollo de Aplicaciones Web — Actividad 6 · Emiliano Ovalle · Consulta: 24 de noviembre de 2026</p>
+
+<h2>1. Datos generales</h2>
+<table>
+  <tr><td class="k">Nombre de la API</td><td>Open Library API (interfaz JSON del catálogo de libros de Open Library).</td></tr>
+  <tr><td class="k">Quién la mantiene</td><td>Open Library, proyecto de <b class="t">Internet Archive</b>, organización sin fines de lucro (501(c)(3)).</td></tr>
+  <tr><td class="k">Documentación oficial</td><td><span class="mono">https://openlibrary.org/developers/api</span></td></tr>
+  <tr><td class="k">Autenticación</td><td>Ninguna. No requiere clave ni registro; las peticiones sin credenciales responden 200.</td></tr>
+  <tr><td class="k">Formato</td><td>JSON (también ofrece YAML y RDF/XML en las mismas rutas).</td></tr>
+</table>
+
+<h2>2. URL base</h2>
+<div class="code">https://openlibrary.org</div>
+
+<h2>3. Endpoints</h2>
+<table>
+  <tr>
+    <th style="width:16%">Endpoint</th><th style="width:42%">Ruta y parámetros</th><th>Qué regresa</th>
+  </tr>
+  <tr>
+    <td><b class="t">Lista</b></td>
+    <td class="mono">GET /search.json<br>q=… (obligatorio) · page=1…N · limit=12 · fields=key,title,author_name,first_publish_year,cover_i,edition_count</td>
+    <td>Un <b>objeto</b> con <span class="mono">numFound</span> (total de coincidencias), <span class="mono">start</span> y <span class="mono">docs</span>, que es el <b>arreglo</b> de obras de la página pedida.</td>
+  </tr>
+  <tr>
+    <td><b class="t">Detalle</b></td>
+    <td class="mono">GET /works/{ID}.json<br>ID = identificador de la obra, p. ej. OL893414W</td>
+    <td>Un <b>objeto</b> de una sola obra: título, descripción, temas (<span class="mono">subjects</span>), portadas (<span class="mono">covers</span>) y fecha de primera publicación.</td>
+  </tr>
+</table>
+<p class="nota">La lista no incluye la descripción ni los temas: esos datos solo existen en el detalle, por eso la página pide el detalle al abrir la ficha de un libro.</p>
+
+<h2>4. Ejemplo de respuesta real (fragmento recortado)</h2>
+<div class="dos">
+  <div>
+    <p class="nota"><b class="t">Lista</b> — <span class="mono">GET /search.json?q=dune&amp;page=1&amp;limit=3</span></p>
+    <div class="code">{
+  "numFound": 48267,      // número → total de obras
+  "start": 0,             // número → desplazamiento
+  "docs": [               // arreglo → obras de la página
+    {
+      "key": "/works/OL893414W",
+      "title": "Dune",
+      "author_name": ["Frank Herbert"],
+      "first_publish_year": 1965,
+      "cover_i": 11481354,
+      "edition_count": 155
+    }
+  ]
+}</div>
+  </div>
+  <div>
+    <p class="nota"><b class="t">Detalle</b> — <span class="mono">GET /works/OL893414W.json</span></p>
+    <div class="code">{
+  "title": "Dune",        // objeto → una obra
+  "key": "/works/OL893414W",
+  "description": "Set on the desert planet Arrakis, Dune is the story…",
+  "subjects": ["Dune (Imaginary place)", "Fiction", …],
+  "covers": [11481354, 12375564, …],
+  "first_publish_date": "1965"
+}</div>
+  </div>
+</div>
+<p class="nota">En la lista <span class="mono">docs</span> y <span class="mono">author_name</span> son arreglos aunque la obra tenga un solo autor; en el detalle <span class="mono">description</span> puede venir como texto o como objeto <span class="mono">{ "value": "…" }</span>, y el código contempla ambas formas.</p>
+
+<h2 style="page-break-before: always">5. Rutas en JavaScript (datos → ruta → valor obtenido)</h2>
+<table>
+  <thead><tr><th style="width:26%">Dato</th><th style="width:44%">Ruta en el JSON</th><th>Valor real (q=dune)</th></tr></thead>
+  <tr><td>Total de resultados</td><td class="mono">json.numFound</td><td class="mono">48267</td></tr>
+  <tr><td>Arreglo de obras</td><td class="mono">json.docs</td><td class="mono">[ {…}, {…}, {…} ]</td></tr>
+  <tr><td>Identificador de la obra</td><td class="mono">json.docs[0].key</td><td class="mono">"/works/OL893414W"</td></tr>
+  <tr><td>Título</td><td class="mono">json.docs[0].title</td><td class="mono">"Dune"</td></tr>
+  <tr><td>Autor</td><td class="mono">json.docs[0].author_name[0]</td><td class="mono">"Frank Herbert"</td></tr>
+  <tr><td>Año de primera edición</td><td class="mono">json.docs[0].first_publish_year</td><td class="mono">1965</td></tr>
+  <tr><td>Número de portada</td><td class="mono">json.docs[0].cover_i</td><td class="mono">11481354</td></tr>
+  <tr><td>Descripción (detalle)</td><td class="mono">detalle.description</td><td class="mono">"Set on the desert planet Arrakis…"</td></tr>
+  <tr><td>Primer tema (detalle)</td><td class="mono">detalle.subjects[0]</td><td class="mono">"Dune (Imaginary place)"</td></tr>
+</table>
+<p class="nota">La portada se arma con otra ruta de la misma API: <span class="mono">https://covers.openlibrary.org/b/id/{cover_i}-M.jpg</span> (comprobada, HTTP 200, image/jpeg).</p>
+
+<h2>6. Reglas de uso, tal como aparecen en la documentación oficial</h2>
+<ul>
+  <li><b class="t">Límite de peticiones:</b> <b>1 petición por segundo</b> sin identificarse y <b>3 por segundo</b> si se envía una cabecera <span class="mono">User-Agent</span> con el nombre de la aplicación y un correo de contacto. La propia documentación advierte que el abuso puede provocar limitación agresiva o bloqueo.</li>
+  <li><b class="t">Caché:</b> la guía pide cachear las respuestas siempre que sea posible. La página guarda cada URL en un <span class="mono">Map</span> y no repite peticiones.</li>
+  <li><b class="t">Uso permitido:</b> proyectos open source y de descubrimiento de libros, investigación y educación. <b>No</b> se debe usar como backend masivo ni para descargar el catálogo en bloque (para eso hay volcados mensuales en <span class="mono">openlibrary.org/developers/dumps</span>), ni hacer scraping del HTML, ni repartir peticiones entre varias IP.</li>
+  <li><b class="t">Licencia y atribución:</b> los datos bibliográficos de Open Library se publican para uso libre; el sitio pide identificar la fuente (Open Library / Internet Archive) y enlazarla. Las portadas pueden conservar derechos de sus editoriales, por lo que se muestran enlazadas desde su CDN, no se redistribuyen.</li>
+  <li><b class="t">CORS:</b> los endpoints usados responden con <span class="mono">Access-Control-Allow-Origin: *</span>, así que se pueden consumir directamente desde el navegador sin proxy (comprobado con peticiones reales).</li>
+</ul>
+
+<p class="chiquita">Verificación: la URL base, ambos endpoints, las rutas y los valores de las tablas se comprobaron con peticiones reales a la API el 24 de noviembre de 2026, y coinciden con la documentación pública citada.</p>
+
+</body>
+</html>

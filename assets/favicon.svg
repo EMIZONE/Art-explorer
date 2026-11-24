@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Biblioteca Abierta">
+  <rect width="64" height="64" rx="12" fill="#1f4e46"/>
+  <path d="M14 18h13.5c3.3 0 5 1.7 5 4.6V48c0-2.7-1.7-4.2-4.7-4.2H14z" fill="#fbf9f5"/>
+  <path d="M50 18H36.5c-3.3 0-5 1.7-5 4.6V48c0-2.7 1.7-4.2 4.7-4.2H50z" fill="#e3eeea"/>
+</svg>

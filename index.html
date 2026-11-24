@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Biblioteca Abierta · Explorador de libros de Open Library</title>
+
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <!-- Bulma 1.0.4 desde CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+  <!-- ===== Cabecera ===== -->
+  <header class="cabecera">
+    <div class="container is-max-widescreen">
+      <div class="nivel-cabecera">
+        <span class="marca">BIBLIOTECA ABIERTA</span>
+        <a class="enlace-fuente" href="https://openlibrary.org/developers/api" target="_blank" rel="noopener">
+          Open Library · Internet Archive
+        </a>
+      </div>
+
+      <h1 class="titulo-principal">Explorador de libros</h1>
+      <p class="subtitulo-principal">
+        Busca un título, un autor o un tema. Los datos y las portadas vienen de Open Library.
+      </p>
+
+      <div class="buscador">
+        <div class="field">
+          <div class="control">
+            <input
+              id="buscador"
+              class="input is-medium input-buscar"
+              type="search"
+              placeholder="Buscar: dune, tolkien, sherlock…"
+              aria-label="Buscar libros"
+              autocomplete="off">
+          </div>
+        </div>
+
+        <div class="sugerencias" id="sugerencias" aria-label="Búsquedas sugeridas">
+          <button class="button is-small is-rounded" data-q="dune">Dune</button>
+          <button class="button is-small is-rounded" data-q="tolkien">Tolkien</button>
+          <button class="button is-small is-rounded" data-q="sherlock holmes">Sherlock</button>
+          <button class="button is-small is-rounded" data-q="jane austen">Austen</button>
+          <button class="button is-small is-rounded" data-q="poesía">Poesía</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== Contenido ===== -->
+  <main class="section">
+    <div class="container is-max-widescreen">
+
+      <div class="barra-estado">
+        <p id="resumen" class="resumen" aria-live="polite">Cargando…</p>
+        <p id="cache-info" class="cache-info" title="Respuestas guardadas en memoria"></p>
+      </div>
+
+      <!-- Avisos: carga implícita en la rejilla, error y sin resultados -->
+      <div id="estado" role="status" aria-live="polite"></div>
+
+      <!-- Rejilla: 2 columnas en móvil, 4 en escritorio -->
+      <div class="fixed-grid has-2-cols-mobile has-4-cols-desktop">
+        <div class="grid" id="celdas"></div>
+      </div>
+
+      <nav id="paginacion" class="pagination is-centered mt-6" role="navigation" aria-label="Paginación"></nav>
+    </div>
+  </main>
+
+  <!-- ===== Ficha del libro ===== -->
+  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+    <div class="modal-background" data-cerrar></div>
+    <div class="modal-card modal-ancho">
+      <header class="modal-card-head">
+        <p class="modal-card-title" id="modal-titulo">Ficha del libro</p>
+        <button class="delete" aria-label="Cerrar" data-cerrar></button>
+      </header>
+      <section class="modal-card-body" id="modal-cuerpo"></section>
+    </div>
+  </div>
+
+  <!-- ===== Pie ===== -->
+  <footer class="footer">
+    <div class="container is-max-widescreen nivel-pie">
+      <p><strong>Emiliano Ovalle</strong> · LAD319 Actividad 6</p>
+      <p>
+        Datos y portadas:
+        <a href="https://openlibrary.org/" target="_blank" rel="noopener">Open Library</a>,
+        proyecto de <a href="https://archive.org/" target="_blank" rel="noopener">Internet Archive</a>
+        (datos en dominio público).
+      </p>
+    </div>
+  </footer>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
+
